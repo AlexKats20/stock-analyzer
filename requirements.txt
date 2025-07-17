@@ -4,3 +4,4 @@ matplotlib
 openpyxl
 fpdf
 mplfinance
+scikit-learn
