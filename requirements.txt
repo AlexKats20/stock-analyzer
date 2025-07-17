@@ -3,6 +3,4 @@ pandas
 matplotlib
 openpyxl
 fpdf
-pandas-ta
 mplfinance
-numpy==1.24.4
