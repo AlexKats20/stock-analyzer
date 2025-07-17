@@ -1,9 +1,9 @@
 name: Run Stock Analyzer
 
 on:
-  workflow_dispatch:      # allows manual trigger from GitHub
+  workflow_dispatch:
   schedule:
-    - cron: '0 6 * * *'    # runs daily at 6 AM UTC
+    - cron: '0 6 * * *'
 
 jobs:
   analyze:
@@ -26,7 +26,7 @@ jobs:
       run: python analyze_stocks.py
 
     - name: Upload report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: stock-report
         path: stock_report.pdf
