@@ -11,7 +11,7 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Rectangle
 from mplfinance.original_flavor import candlestick_ohlc
 import matplotlib.dates as mdates
-import pandas_ta as ta
+
 from fpdf import FPDF
 from sklearn.linear_model import LinearRegression
 import re
