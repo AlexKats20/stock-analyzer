@@ -11,7 +11,7 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Rectangle
 from mplfinance.original_flavor import candlestick_ohlc
 import matplotlib.dates as mdates
-import talib
+import pandas_ta as ta
 from fpdf import FPDF
 from sklearn.linear_model import LinearRegression
 import re
@@ -245,43 +245,7 @@ for tkr, per, freq, cl, patt, chart_path, df_full in summary_rows:
     else:
         pdf.cell(0, 10, "EV/EBITDA chart not found.", 0, 1, 'C')
 
-    # === Pattern Occurrences ===
-    pc, pu = parse_period(per)
-    days_back = pc if pu == 'd' else pc * 21 if pu == 'mo' else pc * 5
-    df_period = df_full.tail(days_back)
-    if df_period.index.tz is not None:
-        df_period.index = df_period.index.tz_localize(None)
-
-    talib_func = getattr(talib, f"CDL{patt}", None)
-    occ_idx = []
-    if talib_func:
-        try:
-            res2 = talib_func(
-                df_period['Open'],
-                df_period['High'],
-                df_period['Low'],
-                df_period['Close']
-            )
-            occ_idx = np.where(res2 != 0)[0]
-        except Exception as e:
-            print(f"[WARN] Pattern Occurrence error for {tkr}: {e}")
-
-    fig2, ax2 = plt.subplots(figsize=(8, 4))
-    ax2.plot(df_period.index, df_period['Close'], lw=1.5)
-    if len(occ_idx) > 0:
-        ax2.scatter(df_period.index[occ_idx], df_period['Close'].iloc[occ_idx], color=ACCENT, s=50)
-    ax2.set_title(f"{tkr} Occurrences of {patt}", fontsize=12)
-    ax2.grid(True, linestyle=':', alpha=0.5)
-    fig2.autofmt_xdate()
-    occ_path = f"charts/{tkr}_occ_{datetime.now():%Y%m%d%H%M%S}.png"
-    fig2.savefig(occ_path, dpi=80)
-    plt.close(fig2)
-
-    pdf.add_page()
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(0, 10, f"{tkr} Pattern Occurrences: {len(occ_idx)}", 0, 1, 'C')
-    pdf.image(occ_path, 10, 30, w=180)
-    os.remove(occ_path)
+    # Pattern Occurrences removed (ta-lib dependency dropped)
 
     # === Price Matches Table ===
     short_p, long_p, sp_lbl, lp_lbl = get_return_periods(days_back)
@@ -324,85 +288,7 @@ for tkr, per, freq, cl, patt, chart_path, df_full in summary_rows:
     pdf.cell(50, 5, f"{avg_lp:.2f}", 1, 0, 'C')
     pdf.ln()
 
-    # === Top 20 Patterns & Returns ===
-    pattern_counts = {}
-    pattern_returns = {}
-
-    for name in dir(talib):
-        if not name.startswith('CDL'):
-            continue
-        res = getattr(talib, name)(df_period['Open'], df_period['High'], df_period['Low'], df_period['Close'])
-        idxs = np.where(res != 0)[0]
-        f_s, f_l = [], []
-        for ix in idxs:
-            if ix + short_p >= len(df_period) or ix + long_p >= len(df_period):
-                continue
-            p0 = df_period['Close'].iloc[ix]
-            ps = df_period['Close'].shift(-short_p).iloc[ix]
-            pl = df_period['Close'].shift(-long_p).iloc[ix]
-            if np.isnan(ps) or np.isnan(pl):
-                continue
-            f_s.append((ps - p0) / p0 * 100)
-            f_l.append((pl - p0) / p0 * 100)
-        if idxs.size > 0:
-            p = name.replace('CDL', '')
-            pattern_counts[p] = len(idxs)
-            pattern_returns[p] = {
-                'short': np.nanmean(f_s) if f_s else 0.0,
-                'long': np.nanmean(f_l) if f_l else 0.0
-            }
-
-    top20 = sorted(pattern_counts.items(), key=lambda x: x[1], reverse=True)[:20]
-    pdf.add_page()
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(0, 10, f"{tkr} Top 20 Patterns & Returns", 0, 1, 'C')
-
-    pdf.set_font('Arial', 'B', 10)
-    for col, w in zip(['Pattern', 'Count', sp_lbl, lp_lbl], [60, 25, 30, 30]):
-        pdf.cell(w, 5, col, 1, 0, 'C')
-    pdf.ln()
-
-    pdf.set_font('Arial', '', 10)
-    for p, count in top20:
-        sh = pattern_returns[p]['short']
-        ln = pattern_returns[p]['long']
-        pdf.cell(60, 5, p, 1, 0, 'C')
-        pdf.cell(25, 5, str(count), 1, 0, 'C')
-        pdf.cell(30, 5, f"{sh:.2f}", 1, 0, 'C')
-        pdf.cell(30, 5, f"{ln:.2f}", 1, 0, 'C')
-        pdf.ln()
-
-from PIL import Image  # at the top of your script
-
-image_path = f"C:/Users/akats/OneDrive/Desktop/stockamalyzer/outputs/{tkr}_Forward_Returns_Table.png"
-
-pdf.add_page()
-pdf.set_font('Arial', 'B', 14)
-pdf.cell(0, 10, f"{tkr} Forward Returns Table", ln=True, align='C')
-pdf.ln(5)
-
-if os.path.exists(image_path):
-    with Image.open(image_path) as img:
-        img_w, img_h = img.size
-        dpi = 96
-        img_w_mm = img_w / dpi * 25.4
-        img_h_mm = img_h / dpi * 25.4
-
-    max_w = 180  # A4 width minus margins
-    max_h = 250  # A4 height minus margins
-    scale_w = max_w / img_w_mm
-    scale_h = max_h / img_h_mm
-    scale = min(scale_w, scale_h, 1.0)
-
-    pdf_w = img_w_mm * scale
-    pdf_h = img_h_mm * scale
-
-    x = (210 - pdf_w) / 2
-    pdf.image(image_path, x=x, y=None, w=pdf_w, h=pdf_h)
-
-else:
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(0, 10, f"[X] Could not find: {image_path}", ln=True, align='C')
+    # Top 20 Patterns & Returns removed (ta-lib dependency dropped)
 
 # === FINALIZE ===
 wb.save('stocks.xlsx')
