@@ -3,4 +3,4 @@ pandas
 matplotlib
 openpyxl
 fpdf
-ta-lib
+pandas-ta
