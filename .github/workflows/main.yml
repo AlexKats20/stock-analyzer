@@ -1,0 +1,32 @@
+name: Run Stock Analyzer
+
+on:
+  workflow_dispatch:      # allows manual trigger from GitHub
+  schedule:
+    - cron: '0 6 * * *'    # runs daily at 6 AM UTC
+
+jobs:
+  analyze:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install Python dependencies
+      run: |
+        pip install yfinance pandas matplotlib openpyxl fpdf ta-lib
+
+    - name: Run stock analyzer
+      run: python analyze_stocks.py
+
+    - name: Upload report
+      uses: actions/upload-artifact@v3
+      with:
+        name: stock-report
+        path: stock_report.pdf
