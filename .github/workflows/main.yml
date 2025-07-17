@@ -20,7 +20,7 @@ jobs:
 
     - name: Install Python dependencies
       run: |
-        pip install yfinance pandas matplotlib openpyxl fpdf ta-lib
+       - pip install yfinance pandas matplotlib openpyxl fpdf pandas-ta
 
     - name: Run stock analyzer
       run: python analyze_stocks.py
